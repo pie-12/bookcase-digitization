@@ -2,10 +2,13 @@ import cv2
 import torch
 import os
 import pathlib
+import platform
 
-# Fix PosixPath error on Windows
-temp = pathlib.PosixPath
-pathlib.PosixPath = pathlib.WindowsPath
+# Thông minh nhận diện hệ điều hành để tránh lỗi Path
+if platform.system() == 'Windows':
+    pathlib.PosixPath = pathlib.WindowsPath
+else:
+    pathlib.WindowsPath = pathlib.PosixPath
 
 def object_detection(images):
     # check if last.pt exists
