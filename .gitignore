@@ -5,3 +5,5 @@ __pycache__/
 data.csv
 runs/
 yolov5/
+
+*.pth

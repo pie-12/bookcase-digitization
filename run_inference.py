@@ -26,7 +26,7 @@ def run_real_inference():
 
     # 2. YOLOv5
     print("Step 2: Detecting information regions (YOLOv5)...")
-    obj_results = yolov5.object_detection(images)
+    obj_results = yolov5.object_detection(images, filenames)
 
     # 3. VietOCR
     print("Step 3: Extracting Vietnamese text (VietOCR)...")
