@@ -1,6 +1,11 @@
 import cv2
 import torch
 import os
+import pathlib
+
+# Fix PosixPath error on Windows
+temp = pathlib.PosixPath
+pathlib.PosixPath = pathlib.WindowsPath
 
 def object_detection(images):
     # check if last.pt exists
