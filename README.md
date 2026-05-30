@@ -7,10 +7,16 @@
   * Lê Thị Thu Nga
  
 * **Thành viên**
-  * Nguyễn Tùng Lâm - 23IT138
-  * Võ Xuân Ngọc - 23IT180
-  * Lê Hữu Anh Tú - 23IT294
-    
+  * Nguyễn Tùng Lâm (Leader) - 23IT138: Kỹ thuật hệ thống, Quản lý Pipeline & Integrator.
+  * Võ Xuân Ngọc - 23IT180: Chuyên gia Huấn luyện (YOLOv5x6 & VietOCR).
+  * Lê Hữu Anh Tú - 23IT294: Chuyên gia Dữ liệu (Crawl & Labeling).
+
+## **Lộ trình khôi phục dự án (Roadmap)**
+Do một số liên kết dữ liệu cũ đã hết hạn, nhóm thực hiện quy trình tái cấu trúc sau:
+1. **Lê Hữu Anh Tú:** Thu thập lại bộ dữ liệu (200+ ảnh) và thực hiện gán nhãn thần tốc trên Makesense.ai.
+2. **Võ Xuân Ngọc:** Huấn luyện lại mô hình YOLOv5x6 trên Colab để tạo file `last.pt` mới.
+3. **Nguyễn Tùng Lâm:** Tối ưu hóa code OCR, sửa lỗi liên kết weights VietOCR và tích hợp toàn bộ Pipeline.
+
 ## **2.Mô tả bài toán**
 * **Bối cảnh ứng dụng:** Trong thời đại số hóa, việc đọc hình ảnh chuyển thành dữ liệu có thể xử lý thao tác được trên máy tính không còn xa lạ nữa. Ví dụ như đọc ảnh chưng minh nhân dân chẳng hạn, hay là giấy khai sinh, ... Nhóm chúng em thực hiện đồ án số hóa tủ sách này với mong muốn có thể giải quyết được việc thay vì thao tác nhập tay để lưu thông tin của quyển sách ta có thể đọc từ ảnh chụp.
 * **Ưu điểm:** Giúp giảm thao tác nhập liệu khi có một kho thư viện khá lớn (vài ngàn cuốn sách) khi muốn lưu thông tin sách lên máy.

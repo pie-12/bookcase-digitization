@@ -1,9 +1,18 @@
 import cv2
 import torch
+import os
 
 def object_detection(images):
+    # check if last.pt exists
+    weights_path = 'last.pt'
+    if not os.path.exists(weights_path):
+        print(f"Warning: {weights_path} not found. Please train the model or provide the weight file.")
+        # fallback to a generic yolov5s model just to keep the pipeline alive for testing
+        # model = torch.hub.load('ultralytics/yolov5', 'yolov5s') 
+        return []
+
     # load model custom data yolov5l
-    model = torch.hub.load('yolov5', 'custom', path='last.pt', source='local')
+    model = torch.hub.load('yolov5', 'custom', path=weights_path, source='local')
     model.conf = 0.5
     results = []
     

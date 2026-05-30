@@ -1,2 +1,12 @@
-craft_text_detector
-vietocr==0.3.5
+opencv-python
+torch
+torchvision
+vietocr
+pandas
+matplotlib
+PyYAML
+scipy
+tqdm
+craft-text-detector
+gdown
+python-gettext

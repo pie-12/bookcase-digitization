@@ -32,7 +32,7 @@ def scanner(pathImage):
 
         # lấy countour lớn nhất
         biggest, maxArea = utlis.biggestContour(contours)
-        if biggest.size != 0:
+        if biggest.size != 0 and maxArea > 5000: # Thêm điều kiện diện tích để tránh nhiễu
             biggest = utlis.reorder(biggest)
             pts1 = np.float32(biggest) 
             pts2 = np.float32([[0, 0], [widthImg, 0], [0, heightImg], [widthImg, heightImg]])
@@ -40,9 +40,9 @@ def scanner(pathImage):
             imgWarpColored = cv2.warpPerspective(img, matrix, (widthImg, heightImg))# cắt bìa sách từ BIGEST COUNTOUR tìm được
             images.append(imgWarpColored)
         else:
-            # Nếu không tìm thấy COUNTOUR thì ta vẫn thêm ảnh gốc vào nhưng sẽ in ra màng hình ảnh không contour được để cảnh báo
-            print('not scanner image ', path)
-            img = cv2.resize(img, (widthImg, heightImg))
-            images.append(img)
+            # Nếu không tìm thấy COUNTOUR (ảnh digital) hoặc diện tích quá nhỏ, ta trả về ảnh gốc đã resize
+            print('Digital image or no contour found for: ', path)
+            imgResized = cv2.resize(img, (widthImg, heightImg))
+            images.append(imgResized)
 
     return (images, os.listdir(pathImage)) 
