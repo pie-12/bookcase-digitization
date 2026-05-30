@@ -1,12 +1,10 @@
-opencv-python
+opencv-python-headless
 torch
 torchvision
-vietocr
 pandas
 matplotlib
 PyYAML
 scipy
 tqdm
-craft-text-detector
 gdown
-python-gettext
+# Core logic libraries are installed via script in Colab to avoid build errors

@@ -11,49 +11,49 @@ from vietocr.tool.predictor import Predictor
 from vietocr.tool.config import Cfg
 import pandas as pd
 import cv2
+import torch
+import os
+
+# Fix PIL ANTIALIAS for newer Pillow versions
+if not hasattr(Image, 'ANTIALIAS'):
+    Image.ANTIALIAS = Image.Resampling.LANCZOS
 
 #sort chữ khi crop line để theo thứ tự từ trái sang phải
 def sort_img(regions):
   for i in range(len(regions) - 1):
-    min = i
+    min_idx = i
     for j in range(i, len(regions)):
-      if abs(regions[min][0, 1] - regions[j][0, 1]) > 10:
-        if regions[min][0, 1] > regions[j][0, 1]:
-          min = j
+      if abs(regions[min_idx][0, 1] - regions[j][0, 1]) > 10:
+        if regions[min_idx][0, 1] > regions[j][0, 1]:
+          min_idx = j
       else:
-        if regions[min][0, 0] > regions[j][0, 0]:
-          min = j
-    regions[min], regions[i] = regions[i], regions[min]
+        if regions[min_idx][0, 0] > regions[j][0, 0]:
+          min_idx = j
+    regions[min_idx], regions[i] = regions[i], regions[min_idx]
   return regions
 
 def ocr(i, detector):
   if i.shape[0] < i.shape[1]:
-    i = Image.fromarray(i)
-    s, p = detector.predict(i, return_prob = True)
+    img_pil = Image.fromarray(i)
+    s, p = detector.predict(img_pil, return_prob = True)
     if p > 0.7:
         return (s, p)
     else:
         return (0, 0)
-  #nếu ảnh dọc thì ta xoay ảnh đông thời dùng prob để ocr được kết quả tốt nhất
   else:
     im1 = Image.fromarray(i)
     s1, p1 = detector.predict(im1, return_prob = True)
-    s = s1
-    p = p1
+    s, p = s1, p1
 
     im2 = cv2.rotate(i, cv2.ROTATE_90_CLOCKWISE)
-    im2 = Image.fromarray(im2)
-    s2, p2 = detector.predict(im2, return_prob = True)
+    s2, p2 = detector.predict(Image.fromarray(im2), return_prob = True)
     if p2 > p:
-        p = p2
-        s = s2
+        p, s = p2, s2
 
     im3 = cv2.rotate(i, cv2.ROTATE_90_COUNTERCLOCKWISE)
-    im3 = Image.fromarray(im3)
-    s3, p3 = detector.predict(im3, return_prob = True)
+    s3, p3 = detector.predict(Image.fromarray(im3), return_prob = True)
     if p3 > p:
-        p = p3
-        s = s3
+        p, s = p3, s3
     if p > 0.7:
         return (s, p)
     else:
@@ -61,74 +61,51 @@ def ocr(i, detector):
     
 def read(img, key, craft_net, refine_net, detector):
   image = read_image(img)
+  is_cuda = torch.cuda.is_available()
                     
   #predict craft
-  if key == 0:
-      prediction_result = get_prediction(
-          image=image,
-          craft_net=craft_net,
-          refine_net=refine_net,
-          text_threshold=0.7,
-          link_threshold=0.3,
-          low_text=0.3,
-          cuda=True,
-          long_size=1280
-      )
-  elif key == 3:
-      prediction_result = get_prediction(
-            image=image,
-            craft_net=craft_net,
-            refine_net=refine_net,
-            text_threshold=0.7,
-            link_threshold=0.1,
-            low_text=0.05,
-            cuda=True,
-            long_size=1280
-        )
-  else:
-      prediction_result = get_prediction(
-          image=image,
-          craft_net=craft_net,
-          refine_net=refine_net,
-          text_threshold=0.7,
-          link_threshold=0.1,
-          low_text=0.2,
-          cuda=True,
-          long_size=1280
-      )
-  regions=prediction_result["polys"]
+  link_thresh = 0.3 if key == 0 else 0.1
+  low_text_thresh = 0.3 if key == 0 else (0.05 if key == 3 else 0.2)
   
-  #sắp xếp lại ảnh sau khi craft
+  prediction_result = get_prediction(
+      image=image,
+      craft_net=craft_net,
+      refine_net=refine_net,
+      text_threshold=0.7,
+      link_threshold=link_thresh,
+      low_text=low_text_thresh,
+      cuda=is_cuda,
+      long_size=1280
+  )
+  regions=prediction_result["polys"]
   sort_img(regions)
 
-  a = []
-  #chuyển thành ảnh lưu vào mảng a
-  for i in regions:
-    a.append(rectify_poly(image, i))
-
-  p = 0
-  s = ''
+  a = [rectify_poly(image, i) for i in regions]
+  p_total = 0
+  s_total = ''
   for i in a:
     s_temp, p_temp = ocr(i, detector)
     if s_temp != 0:
-      p += p_temp
-      s += s_temp + " "
-    p = p/len(a)
-  return s, p
+      p_total += p_temp
+      s_total += s_temp + " "
+  
+  if len(a) > 0:
+    p_total = p_total / len(a)
+    
+  return s_total.strip(), p_total
 
 def craft_and_ocr(results, fn):
-    import torch
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+    is_cuda = torch.cuda.is_available()
     
     # load models
-    # Fix torchvision model_urls error by setting refine_net to None if needed
     try:
-        refine_net = load_refinenet_model(cuda=(device == 'cuda:0'))
+        refine_net = load_refinenet_model(cuda=is_cuda)
     except:
-        print("⚠️ refine_net load failed (torchvision version issue), skipping...")
+        print("⚠️ refine_net load failed, using None")
         refine_net = None
         
-    craft_net = load_craftnet_model(cuda=(device == 'cuda:0'))
+    craft_net = load_craftnet_model(cuda=is_cuda)
     
     config = Cfg.load_config_from_name('vgg_transformer')
     config['cnn']['pretrained']=True
@@ -138,112 +115,50 @@ def craft_and_ocr(results, fn):
 
     out = []
     idx = 0
-    #predict ocr
     for info, cache in results:
-        ten_sach = ""
-        ten_tac_gia = ""
-        nha_xuat_ban = ""
-        tap = ""
-        nguoi_dich = ""
-        tai_ban = ""
+        res = {0: "", 1: "", 2: "", 3: "", 4: "", 5: ""}
         for key, value in info.items():
             for img in value:
                 if img.shape[0] < img.shape[1] * 2:
                     s, _ = read(img, key, craft_net, refine_net, detector)
-                    if key == 0:
-                        ten_sach += s + " "
-                    elif key == 1:
-                        ten_tac_gia += s + " "
-                    elif key == 2:
-                        nha_xuat_ban += s + " "
-                    elif key == 3:
-                        tap += s + " "
-                    elif key == 4:
-                        nguoi_dich += s + " "
-                    else:
-                        tai_ban += s + " "
+                    res[key] += s + " "
                 else:
-                    im1 = img
                     s1, p1 = read(img, key, craft_net, refine_net, detector)
-                    
-                    s = s1
-                    p = p1
+                    s, p = s1, p1
                     
                     im2 = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
                     s2, p2 = read(im2, key, craft_net, refine_net, detector)
-
-                    if p2 > p:
-                      p = p2
-                      s = s2
+                    if p2 > p: p, s = p2, s2
                     
                     im3 = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
                     s3, p3 = read(im3, key, craft_net, refine_net, detector)
-
-                    if p3 > p:
-                      p = p3
-                      s = s3
+                    if p3 > p: p, s = p3, s3
                     
-                    if key == 0:
-                        ten_sach += s + " "
-                    elif key == 1:
-                        ten_tac_gia += s + " "
-                    elif key == 2:
-                        nha_xuat_ban += s + " "
-                    elif key == 3:
-                        tap += s + " "
-                    elif key == 4:
-                        nguoi_dich += s + " "
-                    else:
-                        tai_ban += s + " "
-        #nếu mà tên tác giả, nhà xuất bản, tập, người dịch, tái bản có lẫn vào tên sách thì lấy nó ra
+                    res[key] += s + " "
+        
+        ten_sach = res[0]
+        # Xử lý text chồng lấn
         for i in cache:
-            if i == 1:
-                if ten_tac_gia in ten_sach:
-                    ten_sach = ten_sach.replace(ten_tac_gia, '')
-                else:
-                    for s in ten_tac_gia.split():
-                        ten_sach = ten_sach.replace(s, '')
-            elif i == 2:
-                if nha_xuat_ban in ten_sach:
-                    ten_sach = ten_sach.replace(nha_xuat_ban, '')
-                else:
-                    for s in nha_xuat_ban.split():
-                        ten_sach = ten_sach.replace(s, '')
-            elif i == 3:
-                if tap in ten_sach:
-                    ten_sach = ten_sach.replace(tap, '')
-                else:
-                    for s in tap.split():
-                        ten_sach = ten_sach.replace(s, '')
-            elif i == 4:
-                if nguoi_dich in ten_sach:
-                    ten_sach = ten_sach.replace(nguoi_dich, '')
-                else:
-                    for s in nguoi_dich.split():
-                        ten_sach = ten_sach.replace(s, '')
-            elif i == 5:
-                if tai_ban in ten_sach:
-                    ten_sach = ten_sach.replace(tai_ban, '')
-                else:
-                    for s in tai_ban.split():
-                        ten_sach = ten_sach.replace(s, '')
+            target = res[i].strip()
+            if not target: continue
+            if target in ten_sach:
+                ten_sach = ten_sach.replace(target, '')
+            else:
+                for word in target.split():
+                    ten_sach = ten_sach.replace(word, '')
         
-        #thêm vào dictionary
-        features = {
+        out.append({
             'file names' : fn[idx],
-            'tên sách': ten_sach,
-            'tên tác giả': ten_tac_gia,
-            'nhà xuất bản': nha_xuat_ban,
-            'tập': tap,
-            'người dịch': nguoi_dich,
-            'tái bản': tai_ban
-        }
-        
+            'Ten sach': ten_sach.strip(),
+            'Tac gia': res[1].strip(),
+            'Nha xuat ban': res[2].strip(),
+            'Tap': res[3].strip(),
+            'Nguoi dich': res[4].strip(),
+            'Tai ban': res[5].strip()
+        })
         idx += 1
         
-        out.append(features)
-    #tạo dataframe và lưu vào
-    output = pd.DataFrame()
-    output = output.append(out, sort=False)
-    output = output.sort_values(by=['file names'])
+    output = pd.DataFrame(out)
+    if not output.empty:
+        output = output.sort_values(by=['file names'])
     return output
