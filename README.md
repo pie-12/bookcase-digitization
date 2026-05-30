@@ -1,13 +1,16 @@
-<h1 align="center"><b>CS114.L21 - MÁY HỌC</b></h1>
 <h1 align="center"><b>ĐỒ ÁN CUỐI KÌ</b></h1>
 <h1 align="center"><b>Đề tài: SỐ HÓA TỦ SÁCH (bookcase digitization)</b></h1>
 
 # **1.Giới thiệu**
-* **Bộ môn:** Máy học - CS112.L21
+* **Bộ môn:** HỌC MÁY - MACHINE LEARNING
 * **Giảng viên:**
-  * Lê Đình Duy
-  * Phạm Nguyễn Trường An
-
+  * Lê Thị Thu Nga
+ 
+* **Thành viên**
+  * Nguyễn Tùng Lâm - 23IT138
+  * Võ Xuân Ngọc - 23IT180
+  * Lê Hữu Anh Tú - 23IT294
+    
 ## **2.Mô tả bài toán**
 * **Bối cảnh ứng dụng:** Trong thời đại số hóa, việc đọc hình ảnh chuyển thành dữ liệu có thể xử lý thao tác được trên máy tính không còn xa lạ nữa. Ví dụ như đọc ảnh chưng minh nhân dân chẳng hạn, hay là giấy khai sinh, ... Nhóm chúng em thực hiện đồ án số hóa tủ sách này với mong muốn có thể giải quyết được việc thay vì thao tác nhập tay để lưu thông tin của quyển sách ta có thể đọc từ ảnh chụp.
 * **Ưu điểm:** Giúp giảm thao tác nhập liệu khi có một kho thư viện khá lớn (vài ngàn cuốn sách) khi muốn lưu thông tin sách lên máy.
