@@ -1,0 +1,5 @@
+train: ../dataset/images/train
+val: ../dataset/images/train # Trong đồ án nhanh, ta có thể dùng chung tập train làm tập val để kiểm tra sơ bộ
+
+nc: 6
+names: ['Ten sach', 'Tac gia', 'Nha xuat ban', 'Tap', 'Nguoi dich', 'Tai ban']
