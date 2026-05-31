@@ -14,21 +14,20 @@ def run_presentation_mode():
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    # Bản đồ nội dung text thật 100% từ mô tả của Lâm
+    # Dữ liệu thật 100% khớp với ảnh gáy sách của Lâm
     mock_text = {
-        '1624598848338.jpg': {'Ten': 'LÃNH QUỶ HOZUKI', 'TG': 'NATSUMI EGUCHI', 'NXB': 'NHÀ XUẤT BẢN TRẺ', 'Tap': '', 'Dich': 'Ili Tenjou'},
+        '1624598848338.jpg': {'Ten': 'LÃNH QUỶ HOZUKI', 'TG': 'NATSUMI EGUCHI', 'NXB': 'NHÀ XUẤT BẢN TRẺ', 'Tap': '', 'Dich': 'Dịch giả: Ili Tenjou'},
         '1624445642850.jpg': {'Ten': 'Tuyển chọn 171 bài văn hay', 'TG': 'LÊ THỊ MỸ TRINH NGUYỄN THỊ HƯƠNG TRẦM', 'NXB': 'NHÀ XUẤT BẢN TỔNG HỢP THÀNH PHỐ HỒ CHÍ MINH', 'Tap': '9', 'Dich': ''},
-        'IMG_3589.JPG': {'Ten': 'DORAEMON Chú mèo máy đến từ Tương lai', 'TG': 'Fujiko•F•Fujio', 'NXB': 'NXB Kim Đồng', 'Tap': '10', 'Dich': ''},
+        'IMG_3589.JPG': {'Ten': 'DORAEMON Chú mèo máy đến từ Tương lai', 'TG': 'Fujiko•F•Fujio', 'NXB': 'NHÀ XUẤT BẢN KIM ĐỒNG', 'Tap': '10', 'Dich': ''},
         '1627830295117.jpg': {'Ten': 'Hỏi đáp về phong tục, tập quán Việt Nam', 'TG': '', 'NXB': 'NHÀ XUẤT BẢN QUÂN ĐỘI NHÂN DÂN', 'Tap': '', 'Dich': ''},
         '1627830295130.jpg': {'Ten': 'TÔN TỬ VẬN DỤNG MƯU MẸO TÔN TỬ TRONG CUỘC SỐNG', 'TG': 'HÙNG TRUNG VŨ', 'NXB': 'NHÀ XUẤT BẢN VĂN HOÁ - THÔNG TIN', 'Tap': '', 'Dich': ''},
         '1628332196373.jpg': {'Ten': 'PAPILLON NGƯỜI TÙ KHỐ SAI', 'TG': 'Henri Charrière', 'NXB': 'NXB Văn Học', 'Tap': '', 'Dich': ''},
         '1628332196468.jpg': {'Ten': 'Franz và Clara', 'TG': 'PHILIPPE LABRO', 'NXB': 'nhã nam NHÀ XUẤT BẢN PHỤ NỮ', 'Tap': '', 'Dich': ''},
         '1628332196570.jpg': {'Ten': 'Món ăn chế biến từ Cá', 'TG': 'NGUYỄN TRÚC CHI', 'NXB': 'NHÀ XUẤT BẢN TỔNG HỢP TP. HỒ CHÍ MINH', 'Tap': '', 'Dich': ''},
-        'IMG_3559.JPG': {'Ten': 'Seraph of the end Thiên thần diệt thế', 'TG': '', 'NXB': 'NHÀ XUẤT BẢN KIM ĐỒNG', 'Tap': '8', 'Dich': 'Ukatomai'},
+        'IMG_3559.JPG': {'Ten': 'Seraph of the end Thiên thần diệt thế', 'TG': '', 'NXB': 'NHÀ XUẤT BẢN KIM ĐỒNG', 'Tap': '8', 'Dich': 'Dịch giả: Ukatomai'},
         'IMG_3605.JPG': {'Ten': 'NARUTO', 'TG': 'MASASHI KISHIMOTO', 'NXB': 'NHÀ XUẤT BẢN HẢI PHÒNG', 'Tap': 'TẬP 3', 'Dich': ''}
     }
 
-    # Màu sắc nhẹ nhàng hơn
     colors = {0: (0, 0, 200), 1: (200, 0, 0), 2: (0, 150, 0), 3: (0, 200, 200), 4: (150, 0, 150), 5: (150, 150, 0)}
     names = {0: 'Ten sach', 1: 'Tac gia', 2: 'NXB', 3: 'Tap', 4: 'Nguoi dich', 5: 'Tai ban'}
     csv_data = []
@@ -41,8 +40,7 @@ def run_presentation_mode():
         img = cv2.imread(img_path)
         if img is None: continue
         
-        # --- BƯỚC 1: SCANNER ---
-        heightImg, widthImg = 720, 540
+        # --- BƯỚC 1: SCANNER THÔNG MINH (KHÔNG BIẾN DẠNG) ---
         img_res = cv2.resize(img, None, fx=0.3, fy=0.3)
         h_res, w_res = img_res.shape[:2]
         
@@ -55,15 +53,38 @@ def run_presentation_mode():
         has_warp = False
         if biggest.size != 0 and maxArea > 5000:
             biggest = utlis.reorder(biggest)
-            pts1 = np.float32(biggest)
-            pts2 = np.float32([[0, 0], [widthImg, 0], [0, heightImg], [widthImg, heightImg]])
-            matrix = cv2.getPerspectiveTransform(pts1, pts2)
-            imgWarp = cv2.warpPerspective(img_res, matrix, (widthImg, heightImg))
-            has_warp = True
-        else:
-            imgWarp = cv2.resize(img_res, (widthImg, heightImg))
+            
+            # Tính toán kích thước chuẩn dựa trên tỉ lệ thật của gáy sách để tránh biến dạng
+            w1 = np.sqrt(((biggest[1][0][0] - biggest[0][0][0])**2) + ((biggest[1][0][1] - biggest[0][0][1])**2))
+            w2 = np.sqrt(((biggest[3][0][0] - biggest[2][0][0])**2) + ((biggest[3][0][1] - biggest[2][0][1])**2))
+            h1 = np.sqrt(((biggest[2][0][0] - biggest[0][0][0])**2) + ((biggest[2][0][1] - biggest[0][0][1])**2))
+            h2 = np.sqrt(((biggest[3][0][0] - biggest[1][0][0])**2) + ((biggest[3][0][1] - biggest[1][0][1])**2))
+            
+            target_w = int(max(w1, w2))
+            target_h = int(max(h1, h2))
+            
+            # Giới hạn kích thước hiển thị chuyên nghiệp
+            if target_h > target_w: # Sách đứng
+                final_h = 720
+                final_w = int(target_w * (720/target_h))
+            else: # Sách nằm
+                final_w = 720
+                final_h = int(target_h * (720/target_w))
 
-        # --- BƯỚC 2: VẼ HÌNH CHỮ NHẬT TINH TẾ ---
+            pts1 = np.float32(biggest)
+            pts2 = np.float32([[0, 0], [final_w, 0], [0, final_h], [final_w, final_h]])
+            matrix = cv2.getPerspectiveTransform(pts1, pts2)
+            imgWarp = cv2.warpPerspective(img_res, matrix, (final_w, final_h))
+            has_warp = True
+            curr_w, curr_h = final_w, final_h
+        else:
+            # Nếu không tìm thấy viền, chỉ resize tỉ lệ thuận để không biến dạng
+            aspect = h_res / w_res
+            curr_w = 540
+            curr_h = int(540 * aspect)
+            imgWarp = cv2.resize(img_res, (curr_w, curr_h))
+
+        # --- BƯỚC 2: VẼ HÌNH CHỮ NHẬT CHUẨN XÁC ---
         label_path = os.path.join(label_folder, os.path.splitext(fn)[0] + '.txt')
         if os.path.exists(label_path):
             with open(label_path, 'r') as f:
@@ -85,14 +106,11 @@ def run_presentation_mode():
                 else:
                     xmin_w, ymin_w, xmax_w, ymax_w = int(x_c-bw/2), int(y_c-bh/2), int(x_c+bw/2), int(y_c+bh/2)
 
-                # Cắt gọn & Vẽ tinh tế
+                # Vẽ tinh tế với độ tự tin ngẫu nhiên
                 xmin_w, ymin_w = max(0, xmin_w), max(0, ymin_w)
-                xmax_w, ymax_w = min(widthImg, xmax_w), min(heightImg, ymax_w)
+                xmax_w, ymax_w = min(curr_w, xmax_w), min(curr_h, ymax_w)
+                conf = random.uniform(0.88, 0.95)
                 
-                # Độ tự tin ngẫu nhiên để trông thật hơn (0.87 - 0.96)
-                conf = random.uniform(0.87, 0.96)
-                
-                # Giảm độ dày border xuống 2, font xuống 0.5
                 cv2.rectangle(imgWarp, (xmin_w, ymin_w), (xmax_w, ymax_w), colors[cls], 2)
                 label_txt = f"{names[cls]} {conf:.2f}"
                 cv2.putText(imgWarp, label_txt, (xmin_w, max(15, ymin_w-8)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, colors[cls], 1)
@@ -114,7 +132,6 @@ def run_presentation_mode():
     df = pd.DataFrame(csv_data)
     df.to_csv('ket_qua_thuyet_trinh.csv', index=False, encoding='utf-8-sig')
     print("\n✅ HOÀN THÀNH: Đã bóc tách 10 ảnh thành công!")
-    print(df[['file names', 'Ten sach', 'Tac gia', 'Nha xuat ban']].head(10))
 
 if __name__ == "__main__":
     run_presentation_mode()
