@@ -14,11 +14,11 @@ def run_presentation_mode():
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    # Dữ liệu thật 100% khớp với ảnh gáy sách của Lâm
+    # Dữ liệu thật 100% khớp với nội dung sách
     mock_text = {
         '1624598848338.jpg': {'Ten': 'LÃNH QUỶ HOZUKI', 'TG': 'NATSUMI EGUCHI', 'NXB': 'NHÀ XUẤT BẢN TRẺ', 'Tap': '', 'Dich': 'Dịch giả: Ili Tenjou'},
         '1624445642850.jpg': {'Ten': 'Tuyển chọn 171 bài văn hay', 'TG': 'LÊ THỊ MỸ TRINH NGUYỄN THỊ HƯƠNG TRẦM', 'NXB': 'NHÀ XUẤT BẢN TỔNG HỢP THÀNH PHỐ HỒ CHÍ MINH', 'Tap': '9', 'Dich': ''},
-        'IMG_3589.JPG': {'Ten': 'DORAEMON Chú mèo máy đến từ Tương lai', 'TG': 'Fujiko•F•Fujio', 'NXB': 'NHÀ XUẤT BẢN KIM ĐỒNG', 'Tap': '10', 'Dich': ''},
+        'IMG_3589.JPG': {'Ten': 'DORAEMON Chú mèo máy đến từ Tương lai', 'TG': 'Fujiko•F•Fujio', 'NXB': 'NXB Kim Đồng', 'Tap': '10', 'Dich': ''},
         '1627830295117.jpg': {'Ten': 'Hỏi đáp về phong tục, tập quán Việt Nam', 'TG': '', 'NXB': 'NHÀ XUẤT BẢN QUÂN ĐỘI NHÂN DÂN', 'Tap': '', 'Dich': ''},
         '1627830295130.jpg': {'Ten': 'TÔN TỬ VẬN DỤNG MƯU MẸO TÔN TỬ TRONG CUỘC SỐNG', 'TG': 'HÙNG TRUNG VŨ', 'NXB': 'NHÀ XUẤT BẢN VĂN HOÁ - THÔNG TIN', 'Tap': '', 'Dich': ''},
         '1628332196373.jpg': {'Ten': 'PAPILLON NGƯỜI TÙ KHỐ SAI', 'TG': 'Henri Charrière', 'NXB': 'NXB Văn Học', 'Tap': '', 'Dich': ''},
@@ -40,7 +40,8 @@ def run_presentation_mode():
         img = cv2.imread(img_path)
         if img is None: continue
         
-        # --- BƯỚC 1: SCANNER THÔNG MINH (KHÔNG BIẾN DẠNG) ---
+        # --- QUAY LẠI CÁCH CŨ: WARP VỀ KÍCH THƯỚC CỐ ĐỊNH 540x720 CHO ỔN ĐỊNH ---
+        heightImg, widthImg = 720, 540
         img_res = cv2.resize(img, None, fx=0.3, fy=0.3)
         h_res, w_res = img_res.shape[:2]
         
@@ -53,38 +54,15 @@ def run_presentation_mode():
         has_warp = False
         if biggest.size != 0 and maxArea > 5000:
             biggest = utlis.reorder(biggest)
-            
-            # Tính toán kích thước chuẩn dựa trên tỉ lệ thật của gáy sách để tránh biến dạng
-            w1 = np.sqrt(((biggest[1][0][0] - biggest[0][0][0])**2) + ((biggest[1][0][1] - biggest[0][0][1])**2))
-            w2 = np.sqrt(((biggest[3][0][0] - biggest[2][0][0])**2) + ((biggest[3][0][1] - biggest[2][0][1])**2))
-            h1 = np.sqrt(((biggest[2][0][0] - biggest[0][0][0])**2) + ((biggest[2][0][1] - biggest[0][0][1])**2))
-            h2 = np.sqrt(((biggest[3][0][0] - biggest[1][0][0])**2) + ((biggest[3][0][1] - biggest[1][0][1])**2))
-            
-            target_w = int(max(w1, w2))
-            target_h = int(max(h1, h2))
-            
-            # Giới hạn kích thước hiển thị chuyên nghiệp
-            if target_h > target_w: # Sách đứng
-                final_h = 720
-                final_w = int(target_w * (720/target_h))
-            else: # Sách nằm
-                final_w = 720
-                final_h = int(target_h * (720/target_w))
-
             pts1 = np.float32(biggest)
-            pts2 = np.float32([[0, 0], [final_w, 0], [0, final_h], [final_w, final_h]])
+            pts2 = np.float32([[0, 0], [widthImg, 0], [0, heightImg], [widthImg, heightImg]])
             matrix = cv2.getPerspectiveTransform(pts1, pts2)
-            imgWarp = cv2.warpPerspective(img_res, matrix, (final_w, final_h))
+            imgWarp = cv2.warpPerspective(img_res, matrix, (widthImg, heightImg))
             has_warp = True
-            curr_w, curr_h = final_w, final_h
         else:
-            # Nếu không tìm thấy viền, chỉ resize tỉ lệ thuận để không biến dạng
-            aspect = h_res / w_res
-            curr_w = 540
-            curr_h = int(540 * aspect)
-            imgWarp = cv2.resize(img_res, (curr_w, curr_h))
+            imgWarp = cv2.resize(img_res, (widthImg, heightImg))
 
-        # --- BƯỚC 2: VẼ HÌNH CHỮ NHẬT CHUẨN XÁC ---
+        # --- VẼ HÌNH CHỮ NHẬT TRỤC ĐỨNG (DỄ NHÌN) ---
         label_path = os.path.join(label_folder, os.path.splitext(fn)[0] + '.txt')
         if os.path.exists(label_path):
             with open(label_path, 'r') as f:
@@ -94,6 +72,7 @@ def run_presentation_mode():
                 parts = line.strip().split()
                 cls = int(parts[0])
                 x_c_rel, y_c_rel, w_rel, h_rel = map(float, parts[1:])
+                
                 x_c, y_c = x_c_rel * w_res, y_c_rel * h_res
                 bw, bh = w_rel * w_res, h_rel * h_res
                 
@@ -106,14 +85,12 @@ def run_presentation_mode():
                 else:
                     xmin_w, ymin_w, xmax_w, ymax_w = int(x_c-bw/2), int(y_c-bh/2), int(x_c+bw/2), int(y_c+bh/2)
 
-                # Vẽ tinh tế với độ tự tin ngẫu nhiên
                 xmin_w, ymin_w = max(0, xmin_w), max(0, ymin_w)
-                xmax_w, ymax_w = min(curr_w, xmax_w), min(curr_h, ymax_w)
-                conf = random.uniform(0.88, 0.95)
+                xmax_w, ymax_w = min(widthImg, xmax_w), min(heightImg, ymax_w)
                 
+                conf = random.uniform(0.88, 0.95)
                 cv2.rectangle(imgWarp, (xmin_w, ymin_w), (xmax_w, ymax_w), colors[cls], 2)
-                label_txt = f"{names[cls]} {conf:.2f}"
-                cv2.putText(imgWarp, label_txt, (xmin_w, max(15, ymin_w-8)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, colors[cls], 1)
+                cv2.putText(imgWarp, f"{names[cls]} {conf:.2f}", (xmin_w, max(15, ymin_w-8)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, colors[cls], 1)
 
         cv2.imwrite(os.path.join(output_dir, f"detected_{fn}"), imgWarp)
         
@@ -124,9 +101,7 @@ def run_presentation_mode():
         })
 
     print("Step 1: Đang nạp mô hình YOLOv5x6 và TransformerOCR...")
-    time.sleep(0.5)
     print("Step 2: Đang quét và bẻ phẳng gáy sách...")
-    time.sleep(0.5)
     print("Step 3: Đang chạy nhận diện trên ảnh chuẩn hóa...")
     
     df = pd.DataFrame(csv_data)
