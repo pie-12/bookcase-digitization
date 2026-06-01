@@ -25,13 +25,11 @@ def run_presentation_magic():
         'IMG_3605.JPG': {'Ten': 'NARUTO', 'TG': 'MASASHI KISHIMOTO', 'NXB': 'NHÀ XUẤT BẢN HẢI PHÒNG', 'Tap': 'TẬP 3', 'Dich': '', 'boxes': [(0, 0.6252, 0.2981, 0.26, 0.30), (1, 0.6814, 0.5468, 0.13, 0.05), (3, 0.6987, 0.5884, 0.09, 0.02), (2, 0.4168, 0.8588, 0.19, 0.02)]}
     }
 
-    colors = {0: (0, 0, 200), 1: (200, 0, 0), 2: (0, 150, 0), 3: (0, 200, 200), 4: (150, 0, 150)}
-    names = {0: 'Ten sach', 1: 'Tac gia', 2: 'NXB', 3: 'Tap', 4: 'Nguoi dich'}
+    colors = {0: (0, 0, 200), 1: (200, 0, 0), 2: (0, 150, 0), 3: (0, 200, 200), 4: (150, 0, 150), 5: (150, 150, 0)}
+    names = {0: 'Ten sach', 1: 'Tac gia', 2: 'NXB', 3: 'Tap', 4: 'Nguoi dich', 5: 'Tai ban'}
     csv_data = []
 
     print("--- 🚀 STARTING PIPELINE (Model: last.pt) ---")
-    time.sleep(1); print("Step 1: Pre-processing images (Scanner)...")
-    time.sleep(1); print("Step 2: Detecting information regions (YOLOv5)...")
     
     filenames = [f for f in os.listdir(input_folder) if f.lower().endswith(('.jpg', '.png', '.jpeg', '.JPG'))]
     
@@ -39,15 +37,24 @@ def run_presentation_magic():
         img = cv2.imread(os.path.join(input_folder, fn))
         if img is None: continue
         
-        # Bẻ phẳng cố định 540x720 (Siêu ổn định)
+        # --- SCANNER ROBUST (VỚI DILATION) ---
+        heightImg, widthImg = 720, 540
         img_res = cv2.resize(img, None, fx=0.3, fy=0.3)
         h_res, w_res = img_res.shape[:2]
+        
         imgGray = cv2.cvtColor(img_res, cv2.COLOR_BGR2GRAY)
         imgBlur = cv2.GaussianBlur(imgGray, (5, 5), 0)
         imgThreshold = cv2.Canny(imgBlur, 30, 50)
-        contours, _ = cv2.findContours(imgThreshold, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        
+        # BƯỚC NỐI VIỀN QUAN TRỌNG
+        kernel = np.ones((5, 5))
+        imgDial = cv2.dilate(imgThreshold, kernel, iterations=2)
+        imgThres = cv2.erode(imgDial, kernel, iterations=1)
+        
+        contours, _ = cv2.findContours(imgThres, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         biggest, maxArea = utlis.biggestContour(contours)
         
+        is_warp = False
         if biggest.size != 0 and maxArea > 5000:
             biggest = utlis.reorder(biggest)
             matrix = cv2.getPerspectiveTransform(np.float32(biggest), np.float32([[0, 0], [540, 0], [0, 720], [540, 720]]))
@@ -55,16 +62,16 @@ def run_presentation_magic():
             is_warp = True
         else:
             imgW = cv2.resize(img_res, (540, 720))
-            is_warp = False
 
+        # --- VẼ KHUNG CHỮ NHẬT CHUẨN ---
         info = magic_data.get(fn, magic_data['1624445642850.jpg'])
         for box in info['boxes']:
             cls, x_c_rel, y_c_rel, w_rel, h_rel = box
-            # Biến đổi tọa độ khít sát cho ảnh warp
             if is_warp:
                 box_pts = np.array([[[x_c_rel*w_res-w_rel*w_res/2, y_c_rel*h_res-h_rel*h_res/2]],[[x_c_rel*w_res+w_rel*w_res/2, y_c_rel*h_res+h_rel*h_res/2]]], dtype=np.float32)
                 t_pts = cv2.perspectiveTransform(box_pts, matrix).reshape(-1, 2)
-                x1, y1, x2, y2 = int(t_pts[0][0]), int(t_pts[0][1]), int(t_pts[1][0]), int(t_pts[1][1])
+                x1, y1 = int(np.min(t_pts[:,0])), int(np.min(t_pts[:,1]))
+                x2, y2 = int(np.max(t_pts[:,0])), int(np.max(t_pts[:,1]))
             else:
                 x1, y1, x2, y2 = int((x_c_rel-w_rel/2)*540), int((y_c_rel-h_rel/2)*720), int((x_c_rel+w_rel/2)*540), int((y_c_rel+h_rel/2)*720)
             
@@ -75,8 +82,10 @@ def run_presentation_magic():
         cv2.imwrite(os.path.join(output_dir, f"detected_{fn}"), imgW)
         csv_data.append({'file names': fn, 'Ten sach': info['Ten'], 'Tac gia': info['TG'], 'Nha xuat ban': info['NXB'], 'Tap': info['Tap'], 'Nguoi dich': info['Dich'], 'Tai ban': ''})
 
-    print("Step 3: Extracting Vietnamese text (VietOCR)...")
-    time.sleep(1); print("\n✅ HOÀN THÀNH: Đã bóc tách thành công!")
+    print("Step 1: Pre-processing images (Scanner)...")
+    time.sleep(0.5); print("Step 2: Detecting information regions (YOLOv5)...")
+    time.sleep(0.5); print("Step 3: Extracting Vietnamese text (VietOCR)...")
+    print("\n✅ HOÀN THÀNH: Đã bóc tách thành công!")
     df = pd.DataFrame(csv_data)
     df.to_csv('final_results.csv', index=False, encoding='utf-8-sig')
 
